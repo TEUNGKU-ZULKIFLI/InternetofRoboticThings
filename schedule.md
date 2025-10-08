@@ -14,6 +14,6 @@ Repositori ini mencatat progres mingguan dari mata kuliah Internet of Robotic Th
 
 | Minggu | Branch         | Topik                                                  | Status        | Tanggal     |
 |--------|----------------|--------------------------------------------------------|---------------|-------------|
-| 01     | [pertemuan-01](/pertemuan-01/README.md)   | Rakit mobil 4 Motor DC + ESP32 + L298N + Tes Gerakan   | ✅ Finish | 29 Sep 2025 |
-| 02     | pertemuan-02   | Kontrol via Bluetooth                   | 🔄️ On Progress | 6 Okt 2025  |
-| 03     | pertemuan-03   | Web Server ESP32 untuk kontrol via browser             | ⏳ Belum Mulai | 13 Okt 2025 |
+| 01     | [pertemuan-01](https://github.com/TEUNGKU-ZULKIFLI/InternetofRoboticThings/tree/v01)   | Rakit mobil 4 Motor DC + ESP32 + L298N + Tes Gerakan   | ✅ Finish | 29 Sep 2025 |
+| 02     | [pertemuan-02](https://github.com/TEUNGKU-ZULKIFLI/InternetofRoboticThings/tree/v02)   | Kontrol via Bluetooth                   | ✅ Finish | 6 Okt 2025  |
+| 03     | pertemuan-03   | Web Server ESP32 untuk kontrol via browser             | 🔄️ On Progress | 13 Okt 2025 |
