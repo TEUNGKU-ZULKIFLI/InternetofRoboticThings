@@ -1,25 +1,76 @@
 #include <Arduino.h>
 
-// Definisikan pin motor sisi KIRI (terhubung ke sisi A di L298N)
-#define ENA 25 // Speed Control Kiri (Enable A)
-#define IN1 26 // Arah 1 Kiri
-#define IN2 27 // Arah 2 Kiri
+// Pustaka (library) untuk fungsionalitas Bluetooth Serial
+#include "BluetoothSerial.h"
 
-// Definisikan pin motor sisi KANAN (terhubung ke sisi B di L298N)
-#define ENB 13 // Speed Control Kanan (Enable B)
-#define IN3 14 // Arah 1 Kanan
-#define IN4 12 // Arah 2 Kanan
+// Cek konfigurasi Bluetooth (baris ini wajib ada)
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to enable it
+#endif
 
+// Membuat objek untuk komunikasi Bluetooth, kita beri nama 'SerialBT'
+BluetoothSerial SerialBT;
+
+#define ENA 25
+#define IN1 26
+#define IN2 27
+#define ENB 13
+#define IN3 14
+#define IN4 12
+
+void maju()
+{
+  Serial.println("Maju");
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+void mundur()
+{
+  Serial.println("Mundur");
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+void belokKanan()
+{
+  Serial.println("Kanan");
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+void belokKiri()
+{
+  Serial.println("Kiri");
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+void berhenti()
+{
+  Serial.println("Berhenti");
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
 // =======================================================
-// FUNGSI UTAMA
-// =======================================================
 
-void setup() {
-  // Mulai komunikasi Serial untuk debugging
+void setup()
+{
   Serial.begin(115200);
-  Serial.println("Inisialisasi Robot...");
 
-  // Atur semua pin motor sebagai OUTPUT
+  // Memulai Bluetooth dan memberikan nama pada perangkat kita
+  // Nama ini akan muncul saat Anda mencari perangkat Bluetooth di HP
+  SerialBT.begin("Mobil_IoRT_GACOR");
+  Serial.println("Robot siap dikontrol via Bluetooth!");
+  Serial.println("Silakan pairing dengan 'Mobil_IoRT_GACOR'");
+
+  // Setup pin motor sebagai OUTPUT
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
@@ -27,103 +78,47 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-  // Set kecepatan awal. Nilai bisa dari 0 (berhenti) hingga 255 (maksimal).
-  // Kita mulai dengan 200 agar tidak terlalu kencang.
+  // Set kecepatan motor
   analogWrite(ENA, 200);
   analogWrite(ENB, 200);
 
-  Serial.println("Robot Siap!");
-}
-
-// =======================================================
-// FUNGSI-FUNGSI GERAKAN
-// =======================================================
-
-void maju() {
-  Serial.println("Bergerak Maju...");
-  // Motor Kiri Maju
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  // Motor Kanan Maju
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-
-void mundur() {
-  Serial.println("Bergerak Mundur...");
-  // Motor Kiri Mundur
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  // Motor Kanan Mundur
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-
-void belokKanan() {
-  Serial.println("Belok Kanan...");
-  // Motor Kiri Maju (untuk berputar)
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  // Motor Kanan Mundur (untuk berputar)
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-
-void belokKiri() {
-  Serial.println("Belok Kiri...");
-  // Motor Kiri Mundur (untuk berputar)
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  // Motor Kanan Maju (untuk berputar)
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-
-void berhenti() {
-  Serial.println("Berhenti.");
-  // Matikan semua motor
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-}
-
-// =======================================================
-// LOOP UTAMA (SEQUENCER UNTUK TESTING)
-// =======================================================
-
-void loop() {
-  // Ini adalah urutan tes otomatis. Robot akan melakukan ini berulang-ulang.
-  
-  // Tes maju
-  maju();
-  delay(2000); // Jalan maju selama 2 detik
-
-  // Tes berhenti
+  // Pastikan robot berhenti saat pertama kali dinyalakan
   berhenti();
-  delay(1000); // Berhenti selama 1 detik
+}
 
-  // Tes mundur
-  mundur();
-  delay(2000); // Jalan mundur selama 2 detik
+void loop()
+{
+  // Cek apakah ada data/perintah yang masuk dari smartphone
+  if (SerialBT.available())
+  {
+    // Baca satu karakter perintah yang masuk
+    char command = SerialBT.read();
 
-  // Tes berhenti
-  berhenti();
-  delay(1000);
+    // Tampilkan perintah yang diterima ke Serial Monitor (untuk debugging)
+    Serial.print("Perintah diterima: ");
+    Serial.println(command);
 
-  // Tes belok kanan
-  belokKanan();
-  delay(1000); // Berputar ke kanan selama 1 detik
+    // Logika untuk menjalankan fungsi berdasarkan perintah
+    switch (command)
+    {
+    case 'F': // Jika karakter 'F' (Forward) diterima
+      maju();
+      break;
+    case 'B': // Jika karakter 'B' (Backward) diterima
+      mundur();
+      break;
 
-  // Tes berhenti
-  berhenti();
-  delay(1000);
+    case 'L': // Jika karakter 'L' (Left) diterima
+      belokKiri();
+      break;
 
-  // Tes belok kiri
-  belokKiri();
-  delay(1000); // Berputar ke kiri selama 1 detik
-  
-  // Tes berhenti
-  berhenti();
-  delay(3000); // Berhenti selama 3 detik sebelum mengulang seluruh sekuens
+    case 'R': // Jika karakter 'R' (Right) diterima
+      belokKanan();
+      break;
+
+    default: // Jika karakter lain yang diterima (misal: 'S' atau apa pun)
+      berhenti();
+      break;
+    }
+  }
 }
