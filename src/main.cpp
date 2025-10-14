@@ -1,9 +1,5 @@
 #include <Arduino.h>
 
-// =======================================================
-// KONFIGURASI PIN (HARUS SAMA DENGAN WIRING TAHAP 02)
-// =======================================================
-
 // Definisikan pin motor sisi KIRI (terhubung ke sisi A di L298N)
 #define ENA 25 // Speed Control Kiri (Enable A)
 #define IN1 26 // Arah 1 Kiri
