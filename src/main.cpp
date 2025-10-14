@@ -11,9 +11,6 @@
 // Membuat objek untuk komunikasi Bluetooth, kita beri nama 'SerialBT'
 BluetoothSerial SerialBT;
 
-// =======================================================
-// KONFIGURASI PIN DAN FUNGSI GERAKAN (SAMA SEPERTI TAHAP 03)
-// =======================================================
 #define ENA 25
 #define IN1 26
 #define IN2 27
