@@ -1,18 +1,18 @@
 #include <Arduino.h>
-
-// Pustaka (library) untuk fungsionalitas Bluetooth Serial
-#include "BluetoothSerial.h"
-
-// Cek konfigurasi Bluetooth (baris ini wajib ada)
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to enable it
-#endif
-
-// Membuat objek untuk komunikasi Bluetooth, kita beri nama 'SerialBT'
-BluetoothSerial SerialBT;
+#include <WiFi.h> // Pustaka yang kita gunakan untuk semua fungsi WiFi
 
 // =======================================================
-// KONFIGURASI PIN DAN FUNGSI GERAKAN (SAMA SEPERTI TAHAP 03)
+//          !!! GANTI DENGAN KREDENSIAL WIFI ANDA !!!
+// =======================================================
+const char *ssid = "Mobil_IoRT_GACOR";
+const char *password = "1234567890";
+// =======================================================
+
+// Membuat objek server yang akan berjalan di port 80 (port standar untuk web)
+WiFiServer server(80);
+
+// =======================================================
+// KONFIGURASI PIN DAN FUNGSI GERAKAN (TIDAK BERUBAH)
 // =======================================================
 #define ENA 25
 #define IN1 26
@@ -21,9 +21,10 @@ BluetoothSerial SerialBT;
 #define IN3 14
 #define IN4 12
 
+// Kita tambahkan Serial.println di setiap fungsi agar bisa dipantau di Serial Monitor
 void maju()
 {
-  Serial.println("Maju");
+  Serial.println("Request diterima: MAJU");
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, HIGH);
@@ -31,7 +32,7 @@ void maju()
 }
 void mundur()
 {
-  Serial.println("Mundur");
+  Serial.println("Request diterima: MUNDUR");
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, LOW);
@@ -39,7 +40,7 @@ void mundur()
 }
 void belokKanan()
 {
-  Serial.println("Kanan");
+  Serial.println("Request diterima: KANAN");
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
@@ -47,7 +48,7 @@ void belokKanan()
 }
 void belokKiri()
 {
-  Serial.println("Kiri");
+  Serial.println("Request diterima: KIRI");
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
@@ -55,7 +56,7 @@ void belokKiri()
 }
 void berhenti()
 {
-  Serial.println("Berhenti");
+  Serial.println("Request diterima: STOP");
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
@@ -67,61 +68,96 @@ void setup()
 {
   Serial.begin(115200);
 
-  // Memulai Bluetooth dan memberikan nama pada perangkat kita
-  // Nama ini akan muncul saat Anda mencari perangkat Bluetooth di HP
-  SerialBT.begin("Mobil_IoRT_GACOR");
-  Serial.println("Robot siap dikontrol via Bluetooth!");
-  Serial.println("Silakan pairing dengan 'Mobil_IoRT_GACOR'");
-
-  // Setup pin motor sebagai OUTPUT
+  // Setup pin motor (sama seperti sebelumnya)
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(ENB, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
-
-  // Set kecepatan motor
   analogWrite(ENA, 200);
   analogWrite(ENB, 200);
-
-  // Pastikan robot berhenti saat pertama kali dinyalakan
   berhenti();
+
+  // Memulai koneksi ke WiFi
+  Serial.println();
+  Serial.print("Menghubungkan ke jaringan WiFi: ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+
+  // Menunggu hingga koneksi berhasil, dengan indikator titik-titik
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+
+  // Memberi tahu kita jika koneksi berhasil dan menampilkan alamat IP robot
+  Serial.println("\nWiFi terhubung!");
+  Serial.print("Alamat IP Robot: ");
+  Serial.println(WiFi.localIP()); // INI ADALAH ALAMAT WEB SERVER ANDA!
+
+  // Memulai server
+  server.begin();
 }
 
 void loop()
 {
-  // Cek apakah ada data/perintah yang masuk dari smartphone
-  if (SerialBT.available())
+  WiFiClient client = server.available(); // Cek apakah ada browser yang connect
+  if (!client)
   {
-    // Baca satu karakter perintah yang masuk
-    char command = SerialBT.read();
-
-    // Tampilkan perintah yang diterima ke Serial Monitor (untuk debugging)
-    Serial.print("Perintah diterima: ");
-    Serial.println(command);
-
-    // Logika untuk menjalankan fungsi berdasarkan perintah
-    switch (command)
-    {
-    case 'F': // Jika karakter 'F' (Forward) diterima
-      maju();
-      break;
-    case 'B': // Jika karakter 'B' (Backward) diterima
-      mundur();
-      break;
-
-    case 'L': // Jika karakter 'L' (Left) diterima
-      belokKiri();
-      break;
-
-    case 'R': // Jika karakter 'R' (Right) diterima
-      belokKanan();
-      break;
-
-    default: // Jika karakter lain yang diterima (misal: 'S' atau apa pun)
-      berhenti();
-      break;
-    }
+    return; // Jika tidak ada, ulangi loop
   }
+
+  // Tunggu hingga client mengirim data (request HTTP)
+  while (!client.available())
+  {
+    delay(1);
+  }
+
+  // Baca baris pertama dari request (misal: "GET /maju HTTP/1.1")
+  String request = client.readStringUntil('\r');
+  client.flush(); // Bersihkan sisa data dari client
+
+  // Cek request URL untuk menentukan gerakan
+  if (request.indexOf("/maju") != -1)
+  {
+    maju();
+  }
+  else if (request.indexOf("/mundur") != -1)
+  {
+    mundur();
+  }
+  else if (request.indexOf("/kiri") != -1)
+  {
+    belokKiri();
+  }
+  else if (request.indexOf("/kanan") != -1)
+  {
+    belokKanan();
+  }
+  else if (request.indexOf("/stop") != -1)
+  {
+    berhenti();
+  }
+
+  // Kirim Halaman Web (HTML) sebagai respons ke browser
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/html");
+  client.println("Connection: close"); // Tutup koneksi setelah respons selesai
+  client.println();                    // Baris kosong wajib setelah header
+  client.println("<!DOCTYPE HTML>");
+  client.println("<html><head><title>Kontrol Mobil IoRT</title><meta name='viewport' content='width=device-width, initial-scale=1, user-scalable=no'></head>");
+  client.println("<body style='font-family: Arial; text-align: center; background-color: #282c34; color: white;'>");
+  client.println("<h1>Kontrol Mobil IoRT via WiFi</h1>");
+  client.println("<p><a href='/maju'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #61afef;'>MAJU</button></a></p>");
+  client.println("<p>");
+  client.println("<a href='/kiri'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #c678dd;'>KIRI</button></a>");
+  client.println("<a href='/stop'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #e06c75;'>STOP</button></a>");
+  client.println("<a href='/kanan'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #c678dd;'>KANAN</button></a>");
+  client.println("</p>");
+  client.println("<p><a href='/mundur'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #98c379;'>MUNDUR</button></a></p>");
+  client.println("</body></html>");
+
+  delay(1);
 }
