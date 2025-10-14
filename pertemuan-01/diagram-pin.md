@@ -16,6 +16,7 @@ Dokumen ini menjelaskan konfigurasi pin antara ESP32 dan driver motor L298N yang
 | **ENB**            | **GPIO 13**    | Mengatur Kecepatan Motor Kanan         |
 | **GND** (di L298N) | **GND**        | **SANGAT PENTING!** Titik Referensi Ground |
 
+> [!WARNING]
 > Pastikan semua koneksi stabil dan tidak terbalik. Gunakan jumper kabel berkualitas dan periksa polaritas baterai sebelum menyalakan sistem.
 
 ---
