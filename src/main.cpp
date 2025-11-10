@@ -1,18 +1,13 @@
 #include <Arduino.h>
-#include <WiFi.h> // Pustaka yang kita gunakan untuk semua fungsi WiFi
+#include <WiFi.h>
+#include <WebServer.h> // Library Web Server yang lebih canggih
+#include <SPIFFS.h>    // Library untuk "hard drive" SPIFFS
+
+// Objek Web Server baru di port 80
+WebServer server(80);
 
 // =======================================================
-//          !!! GANTI DENGAN KREDENSIAL WIFI ANDA !!!
-// =======================================================
-const char *ssid = "Mobil_IoRT_GACOR";
-const char *password = "1234567890";
-// =======================================================
-
-// Membuat objek server yang akan berjalan di port 80 (port standar untuk web)
-WiFiServer server(80);
-
-// =======================================================
-// KONFIGURASI PIN DAN FUNGSI GERAKAN (TIDAK BERUBAH)
+// KONFIGURASI PIN (FOKUS HANYA MOTOR)
 // =======================================================
 #define ENA 25
 #define IN1 26
@@ -20,144 +15,128 @@ WiFiServer server(80);
 #define ENB 13
 #define IN3 14
 #define IN4 12
-
-// Kita tambahkan Serial.println di setiap fungsi agar bisa dipantau di Serial Monitor
-void maju()
-{
-  Serial.println("Request diterima: MAJU");
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-void mundur()
-{
-  Serial.println("Request diterima: MUNDUR");
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-void belokKanan()
-{
-  Serial.println("Request diterima: KANAN");
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-void belokKiri()
-{
-  Serial.println("Request diterima: KIRI");
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-void berhenti()
-{
-  Serial.println("Request diterima: STOP");
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-}
 // =======================================================
 
-void setup()
-{
-  Serial.begin(115200);
+/**
+ * @brief Mengatur kecepatan dan arah kedua sisi motor.
+ */
+void setMotorSpeed(int speedLeft, int speedRight) {
+    // Batasi nilainya agar tidak melebihi 255
+    speedLeft = constrain(speedLeft, -255, 255);
+    speedRight = constrain(speedRight, -255, 255);
 
-  // Setup pin motor (sama seperti sebelumnya)
-  pinMode(ENA, OUTPUT);
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  pinMode(ENB, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
-  analogWrite(ENA, 200);
-  analogWrite(ENB, 200);
-  berhenti();
+    // --- Logika Motor Kiri ---
+    if (speedLeft > 0) { // Maju
+        digitalWrite(IN1, HIGH);
+        digitalWrite(IN2, LOW);
+        analogWrite(ENA, speedLeft);
+    } else if (speedLeft < 0) { // Mundur
+        digitalWrite(IN1, LOW);
+        digitalWrite(IN2, HIGH);
+        analogWrite(ENA, -speedLeft);
+    } else { // Berhenti
+        digitalWrite(IN1, LOW);
+        digitalWrite(IN2, LOW);
+        analogWrite(ENA, 0);
+    }
 
-  // Memulai koneksi ke WiFi
-  Serial.println();
-  Serial.print("Menghubungkan ke jaringan WiFi: ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-
-  // Menunggu hingga koneksi berhasil, dengan indikator titik-titik
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-  }
-
-  // Memberi tahu kita jika koneksi berhasil dan menampilkan alamat IP robot
-  Serial.println("\nWiFi terhubung!");
-  Serial.print("Alamat IP Robot: ");
-  Serial.println(WiFi.localIP()); // INI ADALAH ALAMAT WEB SERVER ANDA!
-
-  // Memulai server
-  server.begin();
+    // --- Logika Motor Kanan ---
+    if (speedRight > 0) { // Maju
+        digitalWrite(IN3, HIGH);
+        digitalWrite(IN4, LOW);
+        analogWrite(ENB, speedRight);
+    } else if (speedRight < 0) { // Mundur
+        digitalWrite(IN3, LOW);
+        digitalWrite(IN4, HIGH);
+        analogWrite(ENB, -speedRight);
+    } else { // Berhenti
+        digitalWrite(IN3, LOW);
+        digitalWrite(IN4, LOW);
+        analogWrite(ENB, 0);
+    }
 }
 
-void loop()
-{
-  WiFiClient client = server.available(); // Cek apakah ada browser yang connect
-  if (!client)
-  {
-    return; // Jika tidak ada, ulangi loop
-  }
+// =======================================================
+// FUNGSI HANDLER UNTUK WEB SERVER
+// =======================================================
 
-  // Tunggu hingga client mengirim data (request HTTP)
-  while (!client.available())
-  {
-    delay(1);
-  }
+// Fungsi ini akan dipanggil jika browser meminta halaman utama ("/")
+void handleRoot() {
+    File file = SPIFFS.open("/index.html", "r");
+    server.streamFile(file, "text/html");
+    file.close();
+}
 
-  // Baca baris pertama dari request (misal: "GET /maju HTTP/1.1")
-  String request = client.readStringUntil('\r');
-  client.flush(); // Bersihkan sisa data dari client
+// Fungsi ini akan dipanggil jika browser meminta file "/nipple.js"
+void handleNippleJS() {
+    File file = SPIFFS.open("/nipple.js", "r");
+    server.streamFile(file, "text/javascript");
+    file.close();
+}
 
-  // Cek request URL untuk menentukan gerakan
-  if (request.indexOf("/maju") != -1)
-  {
-    maju();
-  }
-  else if (request.indexOf("/mundur") != -1)
-  {
-    mundur();
-  }
-  else if (request.indexOf("/kiri") != -1)
-  {
-    belokKiri();
-  }
-  else if (request.indexOf("/kanan") != -1)
-  {
-    belokKanan();
-  }
-  else if (request.indexOf("/stop") != -1)
-  {
-    berhenti();
-  }
+// Fungsi ini akan dipanggil jika browser mengirim data ke "/control?x=...&y=..."
+void handleControl() {
+    int x = 0;
+    int y = 0;
 
-  // Kirim Halaman Web (HTML) sebagai respons ke browser
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: text/html");
-  client.println("Connection: close"); // Tutup koneksi setelah respons selesai
-  client.println();                    // Baris kosong wajib setelah header
-  client.println("<!DOCTYPE HTML>");
-  client.println("<html><head><title>Kontrol Mobil IoRT</title><meta name='viewport' content='width=device-width, initial-scale=1, user-scalable=no'></head>");
-  client.println("<body style='font-family: Arial; text-align: center; background-color: #282c34; color: white;'>");
-  client.println("<h1>Kontrol Mobil IoRT via WiFi</h1>");
-  client.println("<p><a href='/maju'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #61afef;'>MAJU</button></a></p>");
-  client.println("<p>");
-  client.println("<a href='/kiri'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #c678dd;'>KIRI</button></a>");
-  client.println("<a href='/stop'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #e06c75;'>STOP</button></a>");
-  client.println("<a href='/kanan'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #c678dd;'>KANAN</button></a>");
-  client.println("</p>");
-  client.println("<p><a href='/mundur'><button style='font-size: 24px; padding: 20px 40px; margin: 5px; width: 200px; background-color: #98c379;'>MUNDUR</button></a></p>");
-  client.println("</body></html>");
+    if (server.hasArg("x") && server.hasArg("y")) {
+        x = server.arg("x").toInt(); 
+        y = server.arg("y").toInt(); 
+    }
 
-  delay(1);
+    int motorSpeed = map(y, -100, 100, -255, 255); // y = throttle
+    int turnSpeed = map(x, -100, 100, -255, 255);  // x = steering
+
+    // =======================================================
+    //  KOREKSI LOGIKA ADA DI SINI! (TANDA + / - DIBALIK)
+    // =======================================================
+    int speedLeft = motorSpeed - turnSpeed;
+    int speedRight = motorSpeed + turnSpeed;
+    // =======================================================
+
+    // Kirim nilai akhir ke fungsi motor
+    setMotorSpeed(speedLeft, speedRight);
+
+    server.send(200, "text/plain", "OK");
+}
+
+// =======================================================
+
+void setup() {
+    Serial.begin(115200);
+
+    pinMode(ENA, OUTPUT); pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT);
+    pinMode(ENB, OUTPUT); pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT);
+
+    if (!SPIFFS.begin(true)) {
+        Serial.println("Gagal me-mount SPIFFS!");
+        return; 
+    }
+    Serial.println("SPIFFS ter-mount dengan sukses.");
+
+    // --- PENGATURAN MODE ACCESS POINT (AP) ---
+    const char* ssid = "Mobil_IoRT_GACOR";
+    const char* password = "1234567890";
+
+    Serial.print("Membuat Access Point (AP) dengan nama: ");
+    Serial.println(ssid);
+    
+    WiFi.softAP(ssid, password);
+
+    IPAddress myIP = WiFi.softAPIP();
+    Serial.print("Alamat IP Robot: ");
+    Serial.println(myIP);
+    // --- AKHIR PENGATURAN AP ---
+
+    // --- Pengaturan Rute Web Server ---
+    server.on("/", HTTP_GET, handleRoot);           
+    server.on("/nipple.js", HTTP_GET, handleNippleJS); 
+    server.on("/control", HTTP_GET, handleControl);   
+
+    server.begin();
+    Serial.println("Web Server aktif!");
+}
+
+void loop() {
+    server.handleClient(); 
 }

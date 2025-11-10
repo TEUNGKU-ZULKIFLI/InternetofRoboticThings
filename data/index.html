@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GACOROVER - Kontrol Analog</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <style>
+        /* Ini adalah CSS untuk membuat tampilan jadi keren */
+        body {
+            font-family: Arial; text-align: center; background-color: #282c34; color: white;
+            overflow: hidden; /* Sembunyikan scrollbar */
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh;
+        }
+        h1 { margin-bottom: 20px; }
+        
+        /* Ini adalah 'kandang' atau zona untuk joystick */
+        #joystick-zone {
+            width: 300px;
+            height: 300px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1); /* Latar belakang transparan */
+            border-radius: 50%; /* Membuatnya jadi bulat */
+        }
+    </style>
+</head>
+<body>
+    <h1>GACOROVER - KONTROL ANALOG</h1>
+
+    <script src="nipple.js"></script>
+
+    <div id="joystick-zone"></div>
+
+    <script>
+        // 3a. Buat joystick di dalam 'kandang' (zona) yang kita siapkan
+        var options = {
+            zone: document.getElementById('joystick-zone'),
+            mode: 'static', // Joystick tidak bergerak, tetap di tengah
+            position: { left: '50%', top: '50%' },
+            color: '#61afef', // Warna biru
+            size: 200 // Ukuran nipple-nya
+        };
+        var joy = nipplejs.create(options);
+
+        // Variabel untuk menyimpan posisi terakhir, agar tidak spam server
+        var lastX = 0;
+        var lastY = 0;
+
+        // 3b. INI BAGIAN TERPENTING: Apa yang terjadi saat joystick bergerak
+        joy.on('move', function (evt, data) {
+            if (data.direction) {
+                // Baca posisi X dan Y. 
+                // data.vector.x/y memberi nilai -1.0 s/d 1.0. Kita kali 100.
+                var x = Math.round(data.vector.x * 100); // Hasil: -100 s/d 100
+                var y = Math.round(data.vector.y * 100); // Hasil: -100 s/d 100
+
+                // Kirim data ke ESP32 HANYA JIKA nilainya berubah
+                if (x !== lastX || y !== lastY) {
+                    sendControlData(x, y);
+                    lastX = x;
+                    lastY = y;
+                }
+            }
+        });
+
+        // 3c. Apa yang terjadi saat joystick dilepas
+        joy.on('end', function (evt) {
+            sendControlData(0, 0); // Kirim (0, 0) untuk berhenti
+            lastX = 0;
+            lastY = 0;
+        });
+
+        // 3d. Fungsi AJAX (Fetch) untuk mengirim data ke ESP32
+        // Ini terjadi di latar belakang tanpa reload halaman (Konsep AJAX)
+        function sendControlData(x, y) {
+            console.log("Sending: X=" + x + ", Y=" + y); // Untuk debugging di browser
+            // Tembakkan request HTTP GET ke server ESP32 kita
+            // Ini adalah "Query Parameter" yang kita bahas: ?x=...&y=...
+            fetch('/control?x=' + x + '&y=' + y)
+                .catch(function(error) {
+                    console.log('Error: ' + error);
+                });
+        }
+    </script>
+</body>
+</html>
