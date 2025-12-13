@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>GACOROVER</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <style>
+        /* RESET & DASAR */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        body {
+            /* Tema Purple Night */
+            background-color: #05000a;
+            background-image:
+                radial-gradient(circle at 50% 50%, #1a0024 0%, #000000 100%);
+            color: #d1d1d1;
+            font-family: 'Consolas', 'Courier New', monospace;
+            /* Font ala Hacker/Engineer */
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- HEADER --- */
+        header {
+            height: 10%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-bottom: 1px solid #330033;
+            background: rgba(20, 0, 30, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 3px;
+            color: #bf00ff;
+            /* Ungu Neon */
+            text-shadow: 0 0 10px rgba(191, 0, 255, 0.8);
+        }
+
+        /* --- CONTAINER UTAMA (3 KOLOM) --- */
+        #main-deck {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 40px;
+            /* Padding kiri kanan agar joystick tidak nempel pinggir */
+        }
+
+        /* --- JOYSTICK ZONE (KIRI & KANAN) --- */
+        .joy-container {
+            width: 140px;
+            height: 140px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed #550055;
+            /* Border putus-putus */
+            border-radius: 50%;
+        }
+
+        .joy-label {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #bf00ff;
+            font-weight: bold;
+        }
+
+        /* --- PANEL TENGAH (VIDEO & DEV INFO) --- */
+        #center-panel {
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+
+        /* --- DEV INFO PANEL (YANG DIMINTA) --- */
+        .dev-panel {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .dev-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 2px solid #bf00ff;
+            /* Garis ungu di kiri */
+            padding: 5px 10px;
+            width: 150px;
+            text-align: left;
+        }
+
+        .dev-role {
+            font-size: 9px;
+            color: #888;
+            display: block;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+
+        .dev-name {
+            font-size: 11px;
+            color: #e0e0e0;
+            font-weight: bold;
+            display: block;
+        }
+
+        /* Simbol status aktif (titik hijau) */
+        .status-dot {
+            height: 6px;
+            width: 6px;
+            background-color: #00ff00;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 5px;
+            box-shadow: 0 0 5px #00ff00;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>GACOROVER - DUAL ANALOG</h1>
+    </header>
+
+    <div id="main-deck">
+
+        <div id="zone-left" class="joy-container">
+            <div class="joy-label">MAJU | MUNDUR</div>
+        </div>
+
+        <div id="center-panel">
+            <div class="dev-panel">
+                <div class="dev-card">
+                    <span class="dev-role">HARDWARE / MECH 👨🏻‍🔧</span>
+                    <span class="dev-name">DEDDY <span class="status-dot"></span></span>
+                </div>
+                <div class="dev-card">
+                    <span class="dev-role">SOFTWARE / CODE 👨🏻‍💻</span>
+                    <span class="dev-name">TEUNGKU <span class="status-dot"></span></span>
+                </div>
+            </div>
+
+        </div>
+
+        <div id="zone-right" class="joy-container">
+            <div class="joy-label">KIRI | KANAN</div>
+        </div>
+
+    </div>
+
+    <script src="nipple.js"></script>
+    <script>
+        // --- CONFIG JOYSTICK (Sama seperti sebelumnya) ---
+        // KIRI: Throttle (Maju/Mundur) - Warna Cyan
+        var joyLeft = nipplejs.create({
+            zone: document.getElementById('zone-left'),
+            mode: 'static',
+            position: {
+                left: '50%',
+                top: '50%'
+            },
+            color: '#00ffff',
+            size: 80,
+            lockY: true
+        });
+
+        // KANAN: Steering (Kiri/Kanan) - Warna Ungu
+        var joyRight = nipplejs.create({
+            zone: document.getElementById('zone-right'),
+            mode: 'static',
+            position: {
+                left: '50%',
+                top: '50%'
+            },
+            color: '#bf00ff',
+            size: 80,
+            lockX: true
+        });
+
+        var currentY = 0;
+        var currentX = 0;
+
+        function sendData() {
+            fetch(`/control?x=${currentX}&y=${currentY}`).catch(e => console.log(e));
+        }
+
+        // Event Listeners
+        joyLeft.on('move', function (evt, data) {
+            if (data.vector) currentY = Math.round(data.vector.y * 100);
+            sendData();
+        });
+        joyLeft.on('end', function () {
+            currentY = 0;
+            sendData();
+        });
+
+        joyRight.on('move', function (evt, data) {
+            if (data.vector) currentX = Math.round(data.vector.x * 100);
+            sendData();
+        });
+        joyRight.on('end', function () {
+            currentX = 0;
+            sendData();
+        });
+    </script>
+</body>
+
+</html>
